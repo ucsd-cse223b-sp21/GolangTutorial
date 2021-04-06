@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"crypto/md5"
 )
 
 var (
@@ -18,12 +19,15 @@ var (
 )
 
 var messageCounter map[string]int
+var writeSignal chan string
 
 const (
 	RESPONSE_OK = 1
 	RESPONSE_BAD = 2
 	RESPONSE_MAGIC = 3
 )
+
+const SECRETHASH = "552300091988820c330a8003eea03067"
 
 type ScoreServer int
 
@@ -44,9 +48,17 @@ func (ss *ScoreServer) PutScore(m Message, mr *MessageResponse) error {
 		messageCounter[m.Contents] = messageCounter[m.Contents] + 1
 	}
 
-	for key, value := range messageCounter {
-		log.Println(key + ":" + fmt.Sprintf("%d",value))
+	writeSignal <- m.Contents
+
+	hash := md5.Sum([]byte(m.Contents))
+	strhash := fmt.Sprintf("%x", hash)
+
+	if strhash == SECRETHASH {
+		mr.ResponseCode = RESPONSE_MAGIC
+	} else {
+		mr.ResponseCode = RESPONSE_OK
 	}
+
 	return nil
 }
 
@@ -111,5 +123,20 @@ func run_server() {
 
     //strange allocation, name exists
 	messageCounter = make(map[string]int, 5)
+
+	go work()
+
 	http.Serve(l, nil)
+}
+
+func work() {
+	//message := <- writeSignal
+	<- writeSignal
+
+	for key, val := range messageCounter {
+		log.Println(key + ":" + fmt.Sprintf("%d",val))
+	}
+
+
+
 }
