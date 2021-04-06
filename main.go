@@ -4,11 +4,16 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"net"
+	"net/http"
+	"net/rpc"
 )
 
 var (
 	client bool
 	server bool
+	serverAddr = "localhost"
+	port = "1234"
 )
 
 const (
@@ -57,8 +62,39 @@ func main() {
 
 func run_client(){
 	log.Println("Starting the client")
+	//addr = localhost:1234
+	cli, err := rpc.DialHTTP("tcp", serverAddr+":"+port)
+
+	if err != nil {
+		log.Fatal("unable to dial: ", err)
+	}
+
+	var (
+		mess Message
+		messResp MessageResponse
+	)
+
+	mess.User = "stew"
+	mess.Contents = "What hath god wraught"
+
+	err = cli.Call("ScoreServer.PutScore", mess, &messResp)
+	if err != nil {
+		log.Fatal("Unable to call PutScore: ", err)
+	}
+
+	log.Printf("Got the response %d\n",messResp.ResponseCode)
 }
 
 func run_server() {
 	log.Println("Starting the server")
+
+	ss := new(ScoreServer)
+	rpc.Register(ss)
+	rpc.HandleHTTP()
+
+	l, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		log.Fatalf("unable to listen on the server: ", err)
+	}
+	http.Serve(l, nil)
 }
