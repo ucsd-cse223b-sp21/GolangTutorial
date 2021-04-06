@@ -12,9 +12,12 @@ import (
 var (
 	client bool
 	server bool
-	serverAddr = "localhost"
+	serverAddr = "137.110.222.47"
+	//serverAddr = "localhost"
 	port = "1234"
 )
+
+var messageCounter map[string]int
 
 const (
 	RESPONSE_OK = 1
@@ -34,7 +37,16 @@ type MessageResponse struct {
 }
 
 func (ss *ScoreServer) PutScore(m Message, mr *MessageResponse) error {
-	log.Println("Made it to the Put Score")
+	_ , ok := messageCounter[m.Contents]
+	if !ok {
+		messageCounter[m.Contents] = 1
+	} else {
+		messageCounter[m.Contents] = messageCounter[m.Contents] + 1
+	}
+
+	for key, value := range messageCounter {
+		log.Println(key + ":" + fmt.Sprintf("%d",value))
+	}
 	return nil
 }
 
@@ -96,5 +108,8 @@ func run_server() {
 	if err != nil {
 		log.Fatalf("unable to listen on the server: ", err)
 	}
+
+    //strange allocation, name exists
+	messageCounter = make(map[string]int, 5)
 	http.Serve(l, nil)
 }
